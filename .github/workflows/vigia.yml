@@ -1,0 +1,29 @@
+name: vigia
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  chequear:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chequear oficina y sitios
+        run: |
+          BASE="https://cctv-smart-panel.vercel.app"
+          K="${{ secrets.VIGIA_K }}"
+          check() {
+            name="$1"
+            path="$2"
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "$BASE$path" || echo 000)
+            if [ "$code" = "200" ]; then
+              curl -s --max-time 20 "$BASE/aviso?k=$K&monitor=$name&tipo=up" > /dev/null || true
+              echo "$name: ok (200)"
+            else
+              curl -s --max-time 20 "$BASE/aviso?k=$K&monitor=$name&tipo=down&det=$code" > /dev/null || true
+              echo "$name: FALLA (codigo $code) - aviso enviado si hubo transicion"
+            fi
+          }
+          check oficina "/vigia"
+          check pinedo "/vigia?sitio=pinedo"
